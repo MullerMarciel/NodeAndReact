@@ -1,6 +1,6 @@
 //const { request } = require('express');
 const express = require('express');
-const { uuid } = require('uuidv4')
+const { uuid, isUuid } = require('uuidv4')
 
 const app = express();
 
@@ -24,15 +24,49 @@ app.use(express.json());
   * 
   */
 
- const projects = [];
+ /**
+  * Middleware:
+  * 
+  * Interceptador de requisições que pode interromper totalmente a requisição
+  * ou alterar dados da requisição 
+  */
+
+const projects = [];
+
+function logRequests(request, response, next){
+   const { method, url } = request;
+
+   const logLabel = `[${method.toUpperCase()}] ${url}`;
+
+   console.time(logLabel);
+
+   next(); // Proximo middleware
+
+   console.timeEnd(logLabel);
+}
+
+function validateProjectId(request, response, next) {
+  const { id } = request.params;
+
+  if (!isUuid(id)){
+    return response.status(400).json({ error: 'Invalid project ID.'});
+  }
+
+  return next();
+}
+
+app.use(logRequests);
+app.use('/projects/:id', validateProjectId);
 
 app.get('/projects', (request, response) => {
-  //const { title, owner } = request.query
 
-  //console.log(title);
-  //console.log(owner);
-  
-  return response.json(projects);
+  const { title } = request.query;
+
+  const results = title
+    ? projects.filter(project => project.title.includes(title))
+    : projects;
+
+  return response.json(results);
 });
 
 app.post('/projects', (request, response) => {
@@ -54,6 +88,7 @@ app.put('/projects/:id', (request, response) => {
   if (projectIndex < 0){
     return response.status(400).json({ error: 'Project not found.' })
   }
+
   const project = {
     id,
     title,
@@ -78,7 +113,6 @@ app.delete('/projects/:id', (request, response) => {
 
   return response.status(204).send();
 });
-
 
 //dentro desse app pode receber um segundo parametro como o 3333, () => ...
 
